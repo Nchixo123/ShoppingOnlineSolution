@@ -3,6 +3,7 @@ using Microsoft.JSInterop;
 using ShoppingOnline.Web.Client;
 using ShoppingOnline.Web.Services.Contracts;
 using ShoppingOnlineModels.DTO;
+using System.Runtime.CompilerServices;
 
 namespace ShoppingOnline.Web.Pages
 {
@@ -13,6 +14,9 @@ namespace ShoppingOnline.Web.Pages
 
         [Inject]
         public IShoppingCartService ShoppingCartService { get; set; }
+
+        [Inject]
+        public IManageCartItemsLocalStorageService ManageCartItemsLocalStorageService { get; set; }
 
         public List<CartItemDTO> ShoppingCartItems { get; set; }
 
@@ -25,7 +29,7 @@ namespace ShoppingOnline.Web.Pages
         {
             try
             {
-                ShoppingCartItems = await ShoppingCartService.GetItems(HardCoded.userId);
+                ShoppingCartItems = await ManageCartItemsLocalStorageService.GetCollection();
                 CartChanged();
             }
             catch (Exception ex)
@@ -56,7 +60,7 @@ namespace ShoppingOnline.Web.Pages
 
                 var returnedUpdateItemDTO = await ShoppingCartService.UpdateQuantity(updateItemDTO);
 
-                UpdateItemTotalPrice(returnedUpdateItemDTO);
+               await UpdateItemTotalPrice(returnedUpdateItemDTO);
 
                 CartChanged();
 
@@ -85,7 +89,7 @@ namespace ShoppingOnline.Web.Pages
             await Js.InvokeVoidAsync("MakeUpdateQuantityButtonVisible", id, visible);
         }
 
-        private void UpdateItemTotalPrice(CartItemDTO cartItemDTO)
+        private async Task UpdateItemTotalPrice(CartItemDTO cartItemDTO)
         {
             var item = GetCartItem(cartItemDTO.Id);
 
@@ -93,6 +97,8 @@ namespace ShoppingOnline.Web.Pages
             {
                 item.TotalPrice = cartItemDTO.Price * cartItemDTO.Quantity;
             }
+
+            await ManageCartItemsLocalStorageService.SaveCollection(ShoppingCartItems);
         }
 
         private void CalculateTotal()
@@ -116,11 +122,13 @@ namespace ShoppingOnline.Web.Pages
             return ShoppingCartItems.FirstOrDefault(x => x.Id == id);
         }
 
-        private void RemoveCartItem(int id)
+        private async Task RemoveCartItem(int id)
         {
             var cartItemDTO = GetCartItem(id);
 
             ShoppingCartItems.Remove(cartItemDTO);
+
+            await ManageCartItemsLocalStorageService.SaveCollection(ShoppingCartItems);
         }
 
         //Try and put the settotalprice & settotal quantity methonds in this method only next time.
